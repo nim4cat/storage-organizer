@@ -121,25 +121,49 @@
 
         if (sessionToken) { showDashboard(); }
 
-        // --- AUTH LOGIC ---
-        loginBtn.addEventListener('click', async () => {
-            authError.textContent = "";
+            // --- AUTH LOGIC ---
+            // --- AUTH LOGIC WITH DETAILED ON-SCREEN STATUS ---
+            loginBtn.addEventListener('click', async () => {
+            authError.textContent = "Connecting to database...";
+            authError.style.color = "var(--primary)";
+            loginBtn.disabled = true;
+            
             try {
                 const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
                     method: 'POST',
-                    headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: loginEmail.value, password: loginPassword.value })
+                    headers: { 
+                        'apikey': SUPABASE_KEY, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({ email: loginEmail.value.trim(), password: loginPassword.value })
                 });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error_description || data.message || "Authentication Failed");
                 
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error_description || data.error || data.message || "Invalid credentials");
+                }
+                
+                if (!data.access_token) {
+                    throw new Error("No access token returned from database.");
+                }
+                
+                // Save session details
                 localStorage.setItem('supabase_token', data.access_token);
                 localStorage.setItem('supabase_uid', data.user.id);
                 sessionToken = data.access_token;
                 userId = data.user.id;
+                
+                // Explicitly trigger the view shift
+                authError.textContent = "";
                 showDashboard();
-            } catch (error) { authError.textContent = error.message; }
+            } catch (error) { 
+                authError.textContent = "❌ Error: " + error.message; 
+                authError.style.color = "var(--danger)";
+                loginBtn.disabled = false;
+            }
         });
+
 
         logoutBtn.addEventListener('click', () => {
             localStorage.clear();
